@@ -1,7 +1,7 @@
 """공통 유틸리티."""
 
 import os
-from datetime import date
+from datetime import date, timedelta
 
 
 def collector_kwargs() -> dict:
@@ -43,6 +43,17 @@ def get_week_option_id(week: str) -> str | None:
     env_key = f"SLACK_LIST_OPT_{week.upper()}"
     val = os.environ.get(env_key, "")
     return val if val else None
+
+
+def get_certification_week() -> str | None:
+    """오늘 날짜 기준으로 인증 기간(월~일)에 해당하는 주차명 반환.
+    인증 기간 = 등록 주말 다음 월요일(start+2일) ~ end."""
+    today = date.today()
+    for name, start, end in WEEK_SCHEDULE:
+        cert_start = start + timedelta(days=2)
+        if cert_start <= today <= end:
+            return name
+    return None
 
 
 def get_current_week() -> str | None:

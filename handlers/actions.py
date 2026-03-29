@@ -4,7 +4,7 @@ import json
 import os
 from templates import messages
 from handlers.views import goal_register_modal, goal_update_modal
-from utils import collector_kwargs, updater_kwargs, get_current_week
+from utils import collector_kwargs, updater_kwargs, get_certification_week
 
 # 이모지 트리거 설정
 EMOJI_GOAL_REGISTER = os.environ.get("SLACK_EMOJI_GOAL_REGISTER", "pencil2")
@@ -32,7 +32,7 @@ def register_actions(app, list_client):
     def handle_open_update_modal(ack, body, client):
         ack()
         user_id = body["user"]["id"]
-        items = list_client.get_incomplete_items_by_user(user_id, week=get_current_week())
+        items = list_client.get_incomplete_items_by_user(user_id, week=get_certification_week())
         meta = json.dumps({
             "channel_id": body.get("channel", {}).get("id", channel_id),
             "message_ts": body.get("message", {}).get("ts", ""),
