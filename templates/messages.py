@@ -91,8 +91,6 @@ def goal_registered(user_id: str, goals: list[dict]) -> dict:
         date_str = f" / {goal['deadline']}" if goal.get("deadline") else ""
         lines.append(f"{num}{label} 수강 목표\n{goal['title']}{date_str}\n")
 
-    lines.append("첫걸음에 박수를! 꾸준함이 멋진 변화를 만들어내요. :footprints:")
-
     return {
         "text": f"<@{user_id}> 님이 주간 목표를 등록했습니다.",
         "blocks": [
