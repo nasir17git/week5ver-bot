@@ -54,6 +54,14 @@ class SlackListClient:
         items.sort(key=_get_updated_at, reverse=True)
         return items
 
+    def get_all_incomplete_items(self) -> list:
+        """todo_completed가 False인 전체 아이템 반환."""
+        col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
+        return [
+            item for item in self._fetch_items()
+            if not _is_completed(item, col_todo)
+        ]
+
     # ── 생성 ────────────────────────────────────────────────────────────────
 
     def create_item(
@@ -248,3 +256,15 @@ def extract_title(item: dict) -> str:
         if text:
             return text
     return "(제목 없음)"
+
+
+def extract_assignees(item: dict) -> list:
+    """아이템에서 담당자 user_id 목록 추출."""
+    col_assignee = os.environ.get("SLACK_LIST_COL_ASSIGNEE")
+    for field in item.get("fields", []):
+        if col_assignee and field.get("column_id") == col_assignee:
+            return field.get("user", [])
+        # column_id 없이도 user 필드 있으면 반환
+        if field.get("user"):
+            return field["user"]
+    return []
