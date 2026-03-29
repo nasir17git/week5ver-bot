@@ -61,9 +61,10 @@ def get_week_option_id(week: str) -> str | None:
 
 
 def get_current_week() -> str | None:
-    """오늘 날짜 기준으로 해당 주차명 반환. 해당 없으면 None."""
+    """오늘 날짜 기준으로 해당 주차명 반환. 겹치는 경우 가장 최근 시작 주차 우선. 해당 없으면 None."""
     today = date.today()
+    result = None
     for name, start, end in WEEK_SCHEDULE:
         if start <= today <= end:
-            return name
-    return None
+            result = name
+    return result
