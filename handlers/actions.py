@@ -4,6 +4,7 @@ import json
 import os
 from templates import messages
 from handlers.views import goal_register_modal, goal_update_modal
+from utils import collector_kwargs, updater_kwargs
 
 # 이모지 트리거 설정
 EMOJI_GOAL_REGISTER = os.environ.get("SLACK_EMOJI_GOAL_REGISTER", "pencil2")
@@ -112,11 +113,12 @@ def register_actions(app, list_client):
             client.chat_postMessage(
                 channel=meta.get("channel_id", channel_id),
                 thread_ts=meta["message_ts"],
+                **collector_kwargs(),
                 **msg,
             )
         else:
             # 슬래시 명령어: 채널에 직접 전송
-            client.chat_postMessage(channel=channel_id, **msg)
+            client.chat_postMessage(channel=channel_id, **collector_kwargs(), **msg)
 
     @app.view("goal_update_modal")
     def handle_goal_update_submit(ack, view, client, body):
@@ -176,11 +178,12 @@ def register_actions(app, list_client):
                 channel=meta.get("channel_id", channel_id),
                 thread_ts=meta["message_ts"],
                 reply_broadcast=True,  # 스레드 댓글이 채널에도 노출
+                **updater_kwargs(),
                 **msg,
             )
         else:
             # 슬래시 명령어: 채널에 직접 전송
-            client.chat_postMessage(channel=channel_id, **msg)
+            client.chat_postMessage(channel=channel_id, **updater_kwargs(), **msg)
 
 
 def _parse_meta(raw: str) -> dict:
