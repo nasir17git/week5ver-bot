@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from slack_sdk.errors import SlackApiError
 from utils import get_week_option_id
 
@@ -55,11 +56,12 @@ class SlackListClient:
         return items
 
     def get_all_incomplete_items(self) -> list:
-        """todo_completed가 False인 전체 아이템 반환."""
+        """todo_completed가 False이고 기한이 오늘 이하인 아이템 반환."""
         col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
+        today = date.today()
         return [
             item for item in self._fetch_items()
-            if not _is_completed(item, col_todo)
+            if not _is_completed(item, col_todo) and _is_due_by(item, today)
         ]
 
     # ── 생성 ────────────────────────────────────────────────────────────────
@@ -229,6 +231,23 @@ def _get_updated_at(item: dict) -> float:
             except (ValueError, TypeError):
                 return 0.0
     return 0.0
+
+
+def _is_due_by(item: dict, cutoff: date) -> bool:
+    """기한(date 타입) 컬럼이 cutoff와 같으면 True. 기한 없는 아이템은 포함."""
+    col_deadline = os.environ.get("SLACK_LIST_COL_DEADLINE")
+    if not col_deadline:
+        return True
+    for field in item.get("fields", []):
+        if field.get("column_id") == col_deadline:
+            date_values = field.get("date", [])
+            if not date_values:
+                return True
+            try:
+                return date.fromisoformat(date_values[0]) == cutoff
+            except (ValueError, TypeError):
+                return True
+    return True
 
 
 def _is_completed(item: dict, col_todo: str | None) -> bool:
