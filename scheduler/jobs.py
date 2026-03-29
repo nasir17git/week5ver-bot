@@ -77,8 +77,7 @@ def send_daily_notifications(client) -> None:
             text = (
                 f"안녕하세요 <@{user_id}>! :wave:\n"
                 f"오늘 아직 인증하지 않은 강의가 {len(titles)}개 있어요:\n"
-                f"{bullet_list}\n\n"
-                "인증을 완료하려면 `/목표인증` 을 입력해 주세요. :white_check_mark:"
+                f"{bullet_list}"
             )
             client.chat_postMessage(channel=dm_channel, text=text, **bot_kwargs)
             sent += 1
