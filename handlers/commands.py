@@ -1,7 +1,7 @@
 import os
 from slack_list.client import SlackListClient
 from handlers.views import goal_register_modal, goal_update_modal, goal_view_modal
-from scheduler.jobs import post_weekly_goal_request, post_daily_update_request
+from scheduler.jobs import post_weekly_goal_request, post_daily_update_request, send_daily_notifications
 
 
 def register_commands(app):
@@ -46,3 +46,10 @@ def register_commands(app):
         ack()
         post_daily_update_request(client)
         respond(response_type="ephemeral", text="일간 인증 안내 메시지를 발송했습니다.")
+
+    @app.command("/일간알림발송")
+    def handle_send_daily_notifications(ack, respond, client):
+        """미완료 항목 담당자 DM 알림 수동 발송."""
+        ack()
+        send_daily_notifications(client)
+        respond(response_type="ephemeral", text="미완료 항목 담당자에게 DM 알림을 발송했습니다.")
