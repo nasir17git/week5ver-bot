@@ -115,6 +115,7 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                     "action_id": "goal_select_input",
                     "placeholder": {"type": "plain_text", "text": "강의를 선택하세요"},
                     "options": options,
+                    "initial_option": options[0],
                 },
             },
             {

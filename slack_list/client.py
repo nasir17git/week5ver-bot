@@ -45,12 +45,14 @@ class SlackListClient:
         return [item for item in self._fetch_items() if _is_assigned_to(item, user_id)]
 
     def get_incomplete_items_by_user(self, user_id: str) -> list:
-        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환."""
+        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환. updated_at 내림차순."""
         col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
-        return [
+        items = [
             item for item in self._fetch_items()
             if _is_assigned_to(item, user_id) and not _is_completed(item, col_todo)
         ]
+        items.sort(key=_get_updated_at, reverse=True)
+        return items
 
     def get_all_incomplete_items(self) -> list:
         """todo_completed가 False인 전체 아이템 반환."""
@@ -212,6 +214,21 @@ def _build_update_cells(
         })
 
     return cells
+
+
+def _get_updated_at(item: dict) -> float:
+    """updated_at 컬럼의 타임스탬프를 float로 반환. 없으면 0.0."""
+    col = os.environ.get("SLACK_LIST_COL_UPDATED_AT")
+    if not col:
+        return 0.0
+    for field in item.get("fields", []):
+        if field.get("column_id") == col:
+            ts = field.get("timestamp") or field.get("value")
+            try:
+                return float(ts)
+            except (ValueError, TypeError):
+                return 0.0
+    return 0.0
 
 
 def _is_completed(item: dict, col_todo: str | None) -> bool:

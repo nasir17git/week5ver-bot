@@ -1,6 +1,25 @@
 """공통 유틸리티."""
 
+import os
 from datetime import date
+
+
+def collector_kwargs() -> dict:
+    """week5ver-collector 봇 표시용 kwargs."""
+    kwargs = {"username": "week5ver-collector"}
+    icon_url = os.environ.get("SLACK_COLLECTOR_ICON_URL", "")
+    if icon_url:
+        kwargs["icon_url"] = icon_url
+    return kwargs
+
+
+def updater_kwargs() -> dict:
+    """week5ver-updater 봇 표시용 kwargs."""
+    kwargs = {"username": "week5ver-updater"}
+    icon_url = os.environ.get("SLACK_UPDATOR_ICON_URL", "")
+    if icon_url:
+        kwargs["icon_url"] = icon_url
+    return kwargs
 
 # 진행 일정: (주차명, 시작일, 종료일)
 WEEK_SCHEDULE = [
