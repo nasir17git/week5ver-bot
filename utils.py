@@ -38,25 +38,10 @@ WEEK_SCHEDULE = [
 WEEK_NAMES = [name for name, _, _ in WEEK_SCHEDULE]
 
 
-# 주차명 → Slack List select option ID 매핑
-# debug_columns.py 실행 결과를 보고 채워주세요
-WEEK_OPTION_IDS: dict[str, str] = {
-    "demo": "Opt2SU4DLJN",
-    "week1": "OptP0EHJM8R",
-    "week2": "OptVL3FAWOB",
-    "week3": "OptSQCCK2TM",
-    "week4": "OptZ93GPZN6",
-    "week5": "Opt2AF3GT92",
-    "week6": "OptHSJJAQII",
-    "week7": "OptJQYZ0N2K",
-    "week8": "OptACRFJHSP",
-    "week9": "Opt96JD88U9",
-}
-
-
 def get_week_option_id(week: str) -> str | None:
-    """주차명을 Slack List select option ID로 변환. 미설정이면 None."""
-    val = WEEK_OPTION_IDS.get(week, "")
+    """주차명을 Slack List select option ID로 변환. 환경변수에서 읽음. 미설정이면 None."""
+    env_key = f"SLACK_LIST_OPT_{week.upper()}"
+    val = os.environ.get(env_key, "")
     return val if val else None
 
 

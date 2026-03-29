@@ -170,11 +170,9 @@ if select_cols:
     label_to_opt: dict[str, str] = {label: opt_id for opt_id, label in all_opts.items() if label}
 
     print()
-    print("# utils.py WEEK_OPTION_IDS 템플릿:")
-    print("WEEK_OPTION_IDS = {")
+    print("# .env에 복붙하세요 (주차 SELECT 옵션 ID):")
     weeks = ["demo", "week1", "week2", "week3", "week4", "week5", "week6", "week7", "week8", "week9"]
     for w in weeks:
         opt_id = label_to_opt.get(w, "")
         suffix = "" if opt_id else "  # ← 확인 필요"
-        print(f'    "{w}": "{opt_id}",{suffix}')
-    print("}")
+        print(f"SLACK_LIST_OPT_{w.upper()}={opt_id}{suffix}")
