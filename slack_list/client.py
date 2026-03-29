@@ -45,12 +45,17 @@ class SlackListClient:
         """담당자(user 타입 필드)에 user_id가 포함된 아이템만 반환."""
         return [item for item in self._fetch_items() if _is_assigned_to(item, user_id)]
 
-    def get_incomplete_items_by_user(self, user_id: str) -> list:
-        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환. updated_at 내림차순."""
+    def get_incomplete_items_by_user(self, user_id: str, week: str | None = None) -> list:
+        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환. updated_at 내림차순.
+        week 지정 시 해당 주차 아이템만 반환."""
+        from utils import get_week_option_id
         col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
+        week_option_id = get_week_option_id(week) if week else None
         items = [
             item for item in self._fetch_items()
-            if _is_assigned_to(item, user_id) and not _is_completed(item, col_todo)
+            if _is_assigned_to(item, user_id)
+            and not _is_completed(item, col_todo)
+            and _is_week_match(item, week_option_id)
         ]
         items.sort(key=_get_updated_at, reverse=True)
         return items
@@ -231,6 +236,19 @@ def _get_updated_at(item: dict) -> float:
             except (ValueError, TypeError):
                 return 0.0
     return 0.0
+
+
+def _is_week_match(item: dict, week_option_id: str | None) -> bool:
+    """week_option_id가 None이면 모두 통과. 지정 시 주차 select 값이 일치하는 아이템만 통과."""
+    if not week_option_id:
+        return True
+    col_week = os.environ.get("SLACK_LIST_COL_WEEK")
+    if not col_week:
+        return True
+    for field in item.get("fields", []):
+        if field.get("column_id") == col_week:
+            return week_option_id in field.get("select", [])
+    return False
 
 
 def _is_due_by(item: dict, cutoff: date) -> bool:

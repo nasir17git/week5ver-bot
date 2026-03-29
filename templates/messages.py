@@ -157,6 +157,23 @@ def daily_update_request() -> dict:
     }
 
 
+def daily_update_expired() -> dict:
+    """일간 인증 안내 메시지 만료 버전 (버튼 없음)."""
+    today = date.today().strftime("%Y-%m-%d")
+    return {
+        "text": "인증 시간이 마감되었습니다.",
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":calendar: *{today}*\n:lock: *인증 시간이 마감되었습니다.*",
+                },
+            },
+        ],
+    }
+
+
 def error_message(text: str) -> dict:
     """에러 안내 메시지 (ephemeral용)."""
     return {
