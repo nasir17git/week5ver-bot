@@ -1,0 +1,5 @@
+services:
+  week5ver-bot:
+    image: nasir17/week5ver-bot:latest
+    env_file: .env
+    restart: unless-stopped

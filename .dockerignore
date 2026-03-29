@@ -1,0 +1,13 @@
+.env
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+markdown/
+asset/
+README.md
+CLAUDE.md
+debug_columns.py
