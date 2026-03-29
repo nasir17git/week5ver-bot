@@ -27,7 +27,7 @@ def register_commands(app):
     @app.command("/목표인증")
     def handle_goal_certify(ack, command, client):
         ack()
-        items = list_client.get_items_by_user(command["user_id"])
+        items = list_client.get_incomplete_items_by_user(command["user_id"])
         client.views_open(
             trigger_id=command["trigger_id"],
             view=goal_update_modal(items),

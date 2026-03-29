@@ -44,6 +44,14 @@ class SlackListClient:
         """담당자(user 타입 필드)에 user_id가 포함된 아이템만 반환."""
         return [item for item in self._fetch_items() if _is_assigned_to(item, user_id)]
 
+    def get_incomplete_items_by_user(self, user_id: str) -> list:
+        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환."""
+        col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
+        return [
+            item for item in self._fetch_items()
+            if _is_assigned_to(item, user_id) and not _is_completed(item, col_todo)
+        ]
+
     # ── 생성 ────────────────────────────────────────────────────────────────
 
     def create_item(
@@ -196,6 +204,16 @@ def _build_update_cells(
         })
 
     return cells
+
+
+def _is_completed(item: dict, col_todo: str | None) -> bool:
+    """todo_completed 컬럼의 checkbox 값이 True이면 완료로 판단."""
+    if not col_todo:
+        return False
+    for field in item.get("fields", []):
+        if field.get("column_id") == col_todo:
+            return field.get("checkbox", False)
+    return False
 
 
 def _is_assigned_to(item: dict, user_id: str) -> bool:

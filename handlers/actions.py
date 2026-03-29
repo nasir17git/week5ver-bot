@@ -31,7 +31,7 @@ def register_actions(app, list_client):
     def handle_open_update_modal(ack, body, client):
         ack()
         user_id = body["user"]["id"]
-        items = list_client.get_items_by_user(user_id)
+        items = list_client.get_incomplete_items_by_user(user_id)
         meta = json.dumps({
             "channel_id": body.get("channel", {}).get("id", channel_id),
             "message_ts": body.get("message", {}).get("ts", ""),
