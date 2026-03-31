@@ -108,26 +108,43 @@ def guess_env_key(key: str, col_type: str) -> str | None:
 
 # ── 출력 ─────────────────────────────────────────────────────────────────────
 
-print("# .env에 복붙하세요\n")
-
+# env_key → (comment, col_id) 매핑 구성
+env_map: dict[str, tuple[str, str]] = {}
 seen_env: set[str] = set()
 for col_id, info in columns.items():
     env_key = guess_env_key(info["key"], info["type"])
     if not env_key or env_key in seen_env:
         continue
     seen_env.add(env_key)
+    env_map[env_key] = col_id
 
-    print(f"# {info['key']} ({info['type']})")
-    print(f"{env_key}={col_id}")
-    print()
+# .env.example 순서에 맞춘 고정 출력 정의
+COLUMN_ORDER = [
+    ("# todo_completed (todo_completed)", "SLACK_LIST_COL_TODO_COMPLETED", "Col00"),
+    ("# todo_assignee (person)",          "SLACK_LIST_COL_ASSIGNEE",       "Col01"),
+    ("# todo_due_date (date)",            "SLACK_LIST_COL_DEADLINE",        "Col02"),
+    ("# name (text)",                     "SLACK_LIST_COL_TITLE",           None),
+    ("# 주차 (select)",                   "SLACK_LIST_COL_WEEK",            None),
+    ("# updated_at (timestamp)",          "SLACK_LIST_COL_UPDATED_AT",      None),
+    ("# 인증자료 (attachment)",            "SLACK_LIST_COL_PROOF",           None),
+    ("# 한 줄 회고 (text)",               "SLACK_LIST_COL_RETRO",           None),
+]
 
-# ── select 옵션 ID 상세 출력 ──────────────────────────────────────────────────
+print("# Slack List Column ID")
+print("# python debug_columns.py 실행 후 확인한 값을 입력")
+for comment, env_key, fixed_val in COLUMN_ORDER:
+    col_id = fixed_val if fixed_val is not None else env_map.get(env_key, "")
+    suffix = "  # ← 확인 필요" if not col_id else ""
+    print(comment)
+    print(f"{env_key}={col_id}{suffix}")
+
+# ── select 옵션 ID 출력 ───────────────────────────────────────────────────────
 
 select_cols = {cid: info for cid, info in columns.items() if info["type"] == "select"}
 if select_cols:
-    col_week_id = os.environ.get("SLACK_LIST_COL_WEEK", "")
+    col_week_id = env_map.get("SLACK_LIST_COL_WEEK", "")
 
-    # 아이템별 제목 + option ID 매핑 수집 (multi-select 지원)
+    # 아이템별 제목 + option ID 매핑 수집
     item_option_map: list[dict] = []
     for item in items:
         title = ""
@@ -139,40 +156,24 @@ if select_cols:
                 for opt_id in f["select"]:
                     item_option_map.append({"title": title or "(제목없음)", "option_id": opt_id})
 
-    # 주차 select 컬럼 특정
     week_col_info = select_cols.get(col_week_id) or (next(iter(select_cols.values())) if select_cols else None)
 
-    print("=" * 60)
-    print("# 주차 SELECT 옵션 ID")
-    print("# 아래 option_id를 보고 utils.py의 WEEK_OPTION_IDS를 채우세요")
-    print("=" * 60)
-
-    # 아이템에서 수집한 옵션 ID (slackLists.columns.list로 못 가져온 경우 대비)
     seen_opts: dict[str, list] = {}
     for row in item_option_map:
         seen_opts.setdefault(row["option_id"], []).append(row["title"])
 
     all_opts = week_col_info["options"] if week_col_info else {}
-    # columns.list로 못 가져왔어도 아이템에서 수집한 옵션 포함
     for opt_id in seen_opts:
         all_opts.setdefault(opt_id, "")
-
-    if all_opts:
-        print(f"\n  {'option_id':<20} {'label':<12} 연결된 아이템 제목")
-        print(f"  {'-'*60}")
-        for opt_id, label in all_opts.items():
-            titles = ", ".join(seen_opts.get(opt_id, ["(아이템 없음)"]))
-            print(f"  {opt_id:<20} {label:<12} {titles[:30]}")
-    else:
-        print("  (아이템에서 옵션을 찾지 못했습니다)")
 
     # label → opt_id 역매핑 (schema에서 가져온 값 우선)
     label_to_opt: dict[str, str] = {label: opt_id for opt_id, label in all_opts.items() if label}
 
     print()
-    print("# .env에 복붙하세요 (주차 SELECT 옵션 ID):")
+    print("# 주차 SELECT 옵션 ID")
+    print("# python debug_columns.py 실행 후 확인한 값을 입력")
     weeks = ["demo", "week1", "week2", "week3", "week4", "week5", "week6", "week7", "week8", "week9"]
     for w in weeks:
         opt_id = label_to_opt.get(w, "")
-        suffix = "" if opt_id else "  # ← 확인 필요"
+        suffix = "  # ← 확인 필요" if not opt_id else ""
         print(f"SLACK_LIST_OPT_{w.upper()}={opt_id}{suffix}")
