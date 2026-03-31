@@ -158,10 +158,10 @@ def register_actions(app, list_client):
                 print(f"[files.info] 파일 정보 조회 실패 fid={fid}: {e}")
 
         # 인증된 강의명 조회
+        from slack_list.client import extract_title
         items = list_client.get_items_by_user(user_id)
         title = next(
-            (f["text"] for item in items if item["id"] == item_id
-             for f in item.get("fields", []) if f.get("text")),
+            (extract_title(item) for item in items if item["id"] == item_id),
             "(강의)"
         )
 
@@ -172,18 +172,11 @@ def register_actions(app, list_client):
             file_permalinks=file_permalinks or None,
         )
         meta = _parse_meta(view.get("private_metadata", ""))
-        if meta.get("message_ts"):
-            # 버튼 클릭: 원본 메시지에 스레드 댓글 + 채널에도 전송
-            client.chat_postMessage(
-                channel=meta.get("channel_id", channel_id),
-                thread_ts=meta["message_ts"],
-                reply_broadcast=True,  # 스레드 댓글이 채널에도 노출
-                **updater_kwargs(),
-                **msg,
-            )
-        else:
-            # 슬래시 명령어: 채널에 직접 전송
-            client.chat_postMessage(channel=channel_id, **updater_kwargs(), **msg)
+        client.chat_postMessage(
+            channel=meta.get("channel_id", channel_id),
+            **updater_kwargs(),
+            **msg,
+        )
 
 
 def _parse_meta(raw: str) -> dict:

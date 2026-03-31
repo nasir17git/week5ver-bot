@@ -287,11 +287,15 @@ def _is_assigned_to(item: dict, user_id: str) -> bool:
 
 
 def extract_title(item: dict) -> str:
-    """아이템에서 제목 텍스트 추출. text 필드가 있는 첫 번째 필드 사용."""
+    """아이템에서 제목 텍스트 추출. SLACK_LIST_COL_TITLE 컬럼 ID로 정확히 찾음."""
+    col_title = os.environ.get("SLACK_LIST_COL_TITLE")
     for field in item.get("fields", []):
-        text = field.get("text")
-        if text:
-            return text
+        if col_title and field.get("column_id") == col_title:
+            return field.get("text") or "(제목 없음)"
+    # fallback: text 키가 있는 첫 번째 필드
+    for field in item.get("fields", []):
+        if field.get("text"):
+            return field["text"]
     return "(제목 없음)"
 
 

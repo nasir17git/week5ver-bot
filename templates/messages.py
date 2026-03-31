@@ -109,7 +109,7 @@ def goal_certified(
     file_permalinks: list[str] | None = None,
 ) -> dict:
     """일간 인증 완료 메시지."""
-    text = f":tada: <@{user_id}> 님이\n{title}\n\n강의 인증을 완료했습니다! :mortar_board::sparkles:"
+    text = f":tada: <@{user_id}> 님이 \n*{title}*\n 강의 인증을 완료했습니다! :mortar_board::sparkles:"
     if retro:
         text += f"\n\n:memo: 한 줄 회고\n{retro}"
 
