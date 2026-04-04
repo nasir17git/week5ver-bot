@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  DOCKERHUB_USERNAME: nasir17
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -19,7 +22,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
@@ -28,7 +31,7 @@ jobs:
           context: .
           push: true
           tags: |
-            nasir17/week5ver-bot:latest
-            nasir17/week5ver-bot:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/week5ver-bot:latest
+            ${{ env.DOCKERHUB_USERNAME }}/week5ver-bot:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
