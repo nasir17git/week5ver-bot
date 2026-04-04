@@ -1,7 +1,10 @@
 """채널 전송용 봇 메시지 템플릿 모음."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+import pytz
 from utils import WEEK_SCHEDULE
+
+_KST = pytz.timezone("Asia/Seoul")
 
 _WEEK_EMOJIS = {
     "demo":  ":hammer:",
@@ -131,7 +134,7 @@ def goal_certified(
 
 def daily_update_request() -> dict:
     """일간 인증 안내 메시지 (버튼 포함)."""
-    today = date.today().strftime("%Y-%m-%d")
+    today = datetime.now(_KST).date().strftime("%Y-%m-%d")
     return {
         "text": "오늘의 강의 인증을 해주세요!",
         "blocks": [
@@ -159,7 +162,7 @@ def daily_update_request() -> dict:
 
 def daily_update_expired() -> dict:
     """일간 인증 안내 메시지 만료 버전 (버튼 없음)."""
-    today = date.today().strftime("%Y-%m-%d")
+    today = datetime.now(_KST).date().strftime("%Y-%m-%d")
     return {
         "text": "인증 시간이 마감되었습니다.",
         "blocks": [
