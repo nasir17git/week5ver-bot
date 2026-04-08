@@ -46,7 +46,7 @@ class SlackListClient:
         return [item for item in self._fetch_items() if _is_assigned_to(item, user_id)]
 
     def get_incomplete_items_by_user(self, user_id: str, week: str | None = None) -> list:
-        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환. updated_at 내림차순.
+        """담당자가 user_id이고 todo_completed가 False인 아이템만 반환. 마감일 오름차순.
         week 지정 시 해당 주차 아이템만 반환."""
         from utils import get_week_option_id
         col_todo = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
@@ -57,7 +57,7 @@ class SlackListClient:
             and not _is_completed(item, col_todo)
             and _is_week_match(item, week_option_id)
         ]
-        items.sort(key=_get_updated_at, reverse=True)
+        items.sort(key=_get_deadline)
         return items
 
     def get_all_incomplete_items(self) -> list:
@@ -232,6 +232,19 @@ def _build_update_cells(
         })
 
     return cells
+
+
+def _get_deadline(item: dict) -> str:
+    """마감일(date 타입) 컬럼 값을 'YYYY-MM-DD' 문자열로 반환. 없으면 '9999-12-31' (뒤로 정렬)."""
+    col_deadline = os.environ.get("SLACK_LIST_COL_DEADLINE")
+    if not col_deadline:
+        return "9999-12-31"
+    for field in item.get("fields", []):
+        if field.get("column_id") == col_deadline:
+            date_values = field.get("date", [])
+            if date_values:
+                return date_values[0]
+    return "9999-12-31"
 
 
 def _get_updated_at(item: dict) -> float:
