@@ -111,6 +111,7 @@ class SlackListClient:
     def update_item(
         self,
         item_id: str,
+        title: str | None = None,
         retro: str | None = None,
         proof_file_ids: list | None = None,
         mark_done: bool = False,
@@ -118,12 +119,14 @@ class SlackListClient:
         """Slack List 아이템을 수정합니다 (일간 인증).
 
         필요한 환경 변수 (column ID):
+          SLACK_LIST_COL_TITLE            수강예정 강의이름
           SLACK_LIST_COL_RETRO            한 줄 회고
           SLACK_LIST_COL_PROOF            인증자료
           SLACK_LIST_COL_TODO_COMPLETED   todo_completed 불리언 컬럼 (todo_mode 활성화 필요)
         """
         cells = _build_update_cells(
             row_id=item_id,
+            title=title,
             retro=retro,
             proof_file_ids=proof_file_ids,
             mark_done=mark_done,
@@ -190,6 +193,7 @@ def _build_create_fields(
 
 def _build_update_cells(
     row_id: str,
+    title: str | None,
     retro: str | None,
     proof_file_ids: list | None,
     mark_done: bool = False,
@@ -197,10 +201,17 @@ def _build_update_cells(
     """update_item용 cells 배열 구성. 각 셀에 row_id 포함."""
     cells: list = []
 
+    col_title          = os.environ.get("SLACK_LIST_COL_TITLE")
     col_retro          = os.environ.get("SLACK_LIST_COL_RETRO")
     col_proof          = os.environ.get("SLACK_LIST_COL_PROOF")
     col_todo_completed = os.environ.get("SLACK_LIST_COL_TODO_COMPLETED")
 
+    if col_title and title:
+        cells.append({
+            "row_id": row_id,
+            "column_id": col_title,
+            "rich_text": _rich_text_block(title),
+        })
     if col_retro and retro:
         cells.append({
             "row_id": row_id,
