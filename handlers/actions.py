@@ -43,27 +43,6 @@ def register_actions(app, list_client):
             view=goal_update_modal(items, private_metadata=meta),
         )
 
-    @app.action("goal_select_input")
-    def handle_goal_select_change(ack, body, client):
-        ack()
-        view = body["view"]
-        selected_item_id = body["actions"][0]["selected_option"]["value"]
-        user_id = body["user"]["id"]
-        items = list_client.get_incomplete_items_by_user(user_id, week=get_certification_week())
-        selected_title = next(
-            (extract_title(item) for item in items if item["id"] == selected_item_id), ""
-        )
-        client.views_update(
-            view_id=view["id"],
-            hash=view["hash"],
-            view=goal_update_modal(
-                items,
-                private_metadata=view["private_metadata"],
-                selected_item_id=selected_item_id,
-                selected_title=selected_title,
-            ),
-        )
-
     # ── 이모지 반응 핸들러 ───────────────────────────────────────────────────
 
     @app.event("reaction_added")
@@ -149,7 +128,7 @@ def register_actions(app, list_client):
         user_id  = body["user"]["id"]
         values   = view["state"]["values"]
 
-        item_id  = (values.get("goal_select_block", {}).get("goal_select_input", {})
+        item_id  = (values["goal_select_block"]["goal_select_input"]
                          .get("selected_option", {}).get("value"))
         new_title = (values.get("title_edit_block", {})
                           .get("title_edit_input", {})
@@ -183,8 +162,15 @@ def register_actions(app, list_client):
             except Exception as e:
                 print(f"[files.info] 파일 정보 조회 실패 fid={fid}: {e}")
 
-        # 인증된 강의명: 모달에서 입력된 값 사용 (재조회 불필요)
-        title = new_title or "(강의)"
+        # 인증된 강의명: 입력값 있으면 사용, 없으면 기존 강의명 조회
+        if new_title:
+            title = new_title
+        else:
+            items = list_client.get_items_by_user(user_id)
+            title = next(
+                (extract_title(item) for item in items if item["id"] == item_id),
+                "(강의)",
+            )
 
         msg = messages.goal_certified(
             user_id=user_id,

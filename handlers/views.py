@@ -72,13 +72,8 @@ def goal_register_modal(private_metadata: str = "") -> dict:
     }
 
 
-def goal_update_modal(
-    items: list,
-    private_metadata: str = "",
-    selected_item_id: str | None = None,
-    selected_title: str | None = None,
-) -> dict:
-    """일간 인증 Modal (강의 선택 + 강의명 편집 + 인증자료 + 한줄회고)."""
+def goal_update_modal(items: list, private_metadata: str = "") -> dict:
+    """일간 인증 Modal (강의 선택 + 강의명 변경 + 인증자료 + 한줄회고)."""
     if not items:
         return {
             "type": "modal",
@@ -103,16 +98,6 @@ def goal_update_modal(
         for item in items
     ]
 
-    # 선택된 아이템 결정 (없으면 첫 번째)
-    initial_option = options[0]
-    if selected_item_id:
-        initial_option = next(
-            (opt for opt in options if opt["value"] == selected_item_id),
-            options[0],
-        )
-
-    title_value = selected_title if selected_title is not None else extract_title(items[0])
-
     return {
         "type": "modal",
         "callback_id": "goal_update_modal",
@@ -122,25 +107,27 @@ def goal_update_modal(
         "close": {"type": "plain_text", "text": "취소"},
         "blocks": [
             {
-                "type": "section",
+                "type": "input",
                 "block_id": "goal_select_block",
-                "text": {"type": "mrkdwn", "text": "*인증할 강의 선택*"},
-                "accessory": {
+                "label": {"type": "plain_text", "text": "인증할 강의 선택"},
+                "element": {
                     "type": "static_select",
                     "action_id": "goal_select_input",
                     "placeholder": {"type": "plain_text", "text": "강의를 선택하세요"},
                     "options": options,
-                    "initial_option": initial_option,
+                    "initial_option": options[0],
                 },
             },
             {
                 "type": "input",
                 "block_id": "title_edit_block",
-                "label": {"type": "plain_text", "text": "강의명 (변경 가능)"},
+                "optional": True,
+                "label": {"type": "plain_text", "text": "강의명 변경"},
+                "hint": {"type": "plain_text", "text": "입력하지 않으면 선택한 강의명 그대로 유지, 입력 시 해당 항목의 강의명을 변경하여 업데이트"},
                 "element": {
                     "type": "plain_text_input",
                     "action_id": "title_edit_input",
-                    "initial_value": title_value,
+                    "placeholder": {"type": "plain_text", "text": "변경할 강의명 입력"},
                     "max_length": 200,
                 },
             },
