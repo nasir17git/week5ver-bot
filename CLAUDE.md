@@ -68,7 +68,11 @@ pip install -r requirements.txt
 ## 실행
 
 ```bash
+# 일반 실행
 python app.py
+
+# 핫리로드 (파일 변경 시 자동 재시작, 개발용)
+watchfiles "python app.py"
 ```
 
 ## 환경 변수 (`.env`)
