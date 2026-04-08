@@ -149,7 +149,7 @@ def register_actions(app, list_client):
         user_id  = body["user"]["id"]
         values   = view["state"]["values"]
 
-        item_id  = (values["goal_select_block"]["goal_select_input"]
+        item_id  = (values.get("goal_select_block", {}).get("goal_select_input", {})
                          .get("selected_option", {}).get("value"))
         new_title = (values.get("title_edit_block", {})
                           .get("title_edit_input", {})

@@ -122,11 +122,10 @@ def goal_update_modal(
         "close": {"type": "plain_text", "text": "취소"},
         "blocks": [
             {
-                "type": "input",
+                "type": "section",
                 "block_id": "goal_select_block",
-                "dispatch_action": True,
-                "label": {"type": "plain_text", "text": "인증할 강의 선택"},
-                "element": {
+                "text": {"type": "mrkdwn", "text": "*인증할 강의 선택*"},
+                "accessory": {
                     "type": "static_select",
                     "action_id": "goal_select_input",
                     "placeholder": {"type": "plain_text", "text": "강의를 선택하세요"},
