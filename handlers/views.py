@@ -123,7 +123,7 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                 "block_id": "title_edit_block",
                 "optional": True,
                 "label": {"type": "plain_text", "text": "강의명 변경"},
-                "hint": {"type": "plain_text", "text": "입력하지 않으면 선택한 강의명 그대로 유지, 입력 시 해당 항목의 강의명을 변경하여 업데이트"},
+                "hint": {"type": "plain_text", "text": "미입력시 선택한 강의명 그대로 유지, 입력 시 선택한 항목의 강의명을 변경하여 업데이트"},
                 "element": {
                     "type": "plain_text_input",
                     "action_id": "title_edit_input",
@@ -148,10 +148,9 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                 "label": {"type": "plain_text", "text": "한 줄 회고"},
                 "optional": True,
                 "element": {
-                    "type": "plain_text_input",
+                    "type": "rich_text_input",
                     "action_id": "retro_input",
                     "placeholder": {"type": "plain_text", "text": "오늘의 한 줄 회고를 남겨주세요"},
-                    "max_length": 500,
                 },
             },
         ],

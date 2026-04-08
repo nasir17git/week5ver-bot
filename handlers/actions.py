@@ -135,7 +135,7 @@ def register_actions(app, list_client):
                           .get("value") or "").strip()
         retro    = (values.get("retro_block", {})
                          .get("retro_input", {})
-                         .get("value") or "").strip()
+                         .get("rich_text_value"))
         # file_input 결과는 files 키에 파일 ID 배열로 전달됨
         proof_files = (values.get("proof_block", {})
                              .get("proof_input", {})

@@ -216,7 +216,7 @@ def _build_update_cells(
         cells.append({
             "row_id": row_id,
             "column_id": col_retro,
-            "rich_text": _rich_text_block(retro),
+            "rich_text": [retro] if isinstance(retro, dict) else _rich_text_block(retro),
         })
     if col_proof and proof_file_ids:
         cells.append({
