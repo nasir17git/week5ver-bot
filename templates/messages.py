@@ -108,17 +108,24 @@ def goal_registered(user_id: str, goals: list[dict]) -> dict:
 def goal_certified(
     user_id: str,
     title: str,
-    retro: str | None = None,
+    retro=None,  # str | dict(rich_text) | None
     file_permalinks: list[str] | None = None,
 ) -> dict:
     """일간 인증 완료 메시지."""
-    text = f":tada: <@{user_id}> 님이 \n*{title}*\n 강의 인증을 완료했습니다! :mortar_board::sparkles:"
-    if retro:
-        text += f"\n\n:memo: 한 줄 회고\n{retro}"
+    header = f":tada: <@{user_id}> 님이 \n*{title}*\n 강의 인증을 완료했습니다! :mortar_board::sparkles:"
+    if retro and isinstance(retro, str):
+        header += f"\n\n:memo: 한 줄 회고\n{retro}"
 
     blocks: list[dict] = [
-        {"type": "section", "text": {"type": "mrkdwn", "text": text}},
+        {"type": "section", "text": {"type": "mrkdwn", "text": header}},
     ]
+    if retro and isinstance(retro, dict):
+        blocks.append({
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": ":memo: *한 줄 회고*"}],
+        })
+        blocks.append(retro)
+
     for permalink in (file_permalinks or []):
         blocks.append({
             "type": "image",
