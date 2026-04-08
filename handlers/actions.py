@@ -4,6 +4,7 @@ import json
 import os
 from templates import messages
 from handlers.views import goal_register_modal, goal_update_modal
+from slack_list.client import extract_title
 from utils import collector_kwargs, updater_kwargs, get_certification_week
 
 # 이모지 트리거 설정
@@ -40,6 +41,27 @@ def register_actions(app, list_client):
         client.views_open(
             trigger_id=body["trigger_id"],
             view=goal_update_modal(items, private_metadata=meta),
+        )
+
+    @app.action("goal_select_input")
+    def handle_goal_select_change(ack, body, client):
+        ack()
+        view = body["view"]
+        selected_item_id = body["actions"][0]["selected_option"]["value"]
+        user_id = body["user"]["id"]
+        items = list_client.get_incomplete_items_by_user(user_id, week=get_certification_week())
+        selected_title = next(
+            (extract_title(item) for item in items if item["id"] == selected_item_id), ""
+        )
+        client.views_update(
+            view_id=view["id"],
+            hash=view["hash"],
+            view=goal_update_modal(
+                items,
+                private_metadata=view["private_metadata"],
+                selected_item_id=selected_item_id,
+                selected_title=selected_title,
+            ),
         )
 
     # ── 이모지 반응 핸들러 ───────────────────────────────────────────────────
@@ -129,6 +151,9 @@ def register_actions(app, list_client):
 
         item_id  = (values["goal_select_block"]["goal_select_input"]
                          .get("selected_option", {}).get("value"))
+        new_title = (values.get("title_edit_block", {})
+                          .get("title_edit_input", {})
+                          .get("value") or "").strip()
         retro    = (values.get("retro_block", {})
                          .get("retro_input", {})
                          .get("value") or "").strip()
@@ -141,6 +166,7 @@ def register_actions(app, list_client):
         if item_id:
             list_client.update_item(
                 item_id=item_id,
+                title=new_title or None,
                 retro=retro or None,
                 proof_file_ids=proof_ids or None,
                 mark_done=True,
@@ -157,13 +183,8 @@ def register_actions(app, list_client):
             except Exception as e:
                 print(f"[files.info] 파일 정보 조회 실패 fid={fid}: {e}")
 
-        # 인증된 강의명 조회
-        from slack_list.client import extract_title
-        items = list_client.get_items_by_user(user_id)
-        title = next(
-            (extract_title(item) for item in items if item["id"] == item_id),
-            "(강의)"
-        )
+        # 인증된 강의명: 모달에서 입력된 값 사용 (재조회 불필요)
+        title = new_title or "(강의)"
 
         msg = messages.goal_certified(
             user_id=user_id,
