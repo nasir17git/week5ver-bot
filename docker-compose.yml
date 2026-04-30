@@ -1,5 +1,5 @@
 services:
   week5ver-bot:
-    image: nasir17/week5ver-bot:latest
+    image: nasir17/week5ver-bot:210d541919280894d6b315b662685c4abd187f4b
     env_file: .env
     restart: unless-stopped
