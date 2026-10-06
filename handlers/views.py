@@ -3,7 +3,7 @@
 import json
 
 from slack_list.client import extract_title
-from utils import get_current_week
+from utils import MONTH_WEEKS, get_current_week, get_week_dates
 
 
 def monthly_registration_modal(month: str, private_metadata: str | None = None) -> dict:
@@ -24,6 +24,27 @@ def monthly_registration_modal(month: str, private_metadata: str | None = None) 
             "text": {
                 "type": "mrkdwn",
                 "text": f"*{month_label}* 활동을 등록하시겠습니까?\n등록하면 이 달에 배정된 모든 주차에 참가자로 추가됩니다.",
+            },
+        }],
+    }
+
+
+def monthly_already_registered_modal(month: str) -> dict:
+    """해당 월의 모든 주차에 이미 참여현황이 있는 사용자에게 보여주는 Modal."""
+    month_number = int(month.split("-", 1)[1])
+    weeks = " · ".join(
+        f"{week}({get_week_dates(week)[0].month}/{get_week_dates(week)[0].day}~)"
+        for week in MONTH_WEEKS[month]
+    )
+    return {
+        "type": "modal",
+        "title": {"type": "plain_text", "text": "월간 활동 등록"},
+        "close": {"type": "plain_text", "text": "닫기"},
+        "blocks": [{
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{month_number}월* 활동에 이미 등록되어 있습니다.\n{weeks}\n_월 구분은 주차의 월요일 기준입니다._",
             },
         }],
     }

@@ -151,6 +151,16 @@ class SlackListClient:
         print(f"[SlackList] create_item 성공: id={item.get('id')}")
         return item
 
+    def get_registered_weeks(self, user_id: str, weeks: list[str], *, items: list | None = None) -> set[str]:
+        """weeks 중 user_id의 참여현황 행(참여·휴식 모두)이 있는 주차를 반환."""
+        if items is None:
+            items = self._fetch_items()
+        rows = [item for item in items if _is_participation(item) and _is_assigned_to(item, user_id)]
+        return {
+            week for week in weeks
+            if any(_is_week_match(row, _required_week_option(week)) for row in rows)
+        }
+
     def sync_participation(self, user_id: str, week: str, status: str = "active", *, items: list | None = None) -> tuple[dict, bool]:
         """사용자·주차 참여현황 행을 없을 때만 생성. (item, created)"""
         if items is None:

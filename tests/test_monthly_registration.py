@@ -29,21 +29,68 @@ class MonthlyRegistrationTests(unittest.TestCase):
         self.assertIn("예", modal["submit"]["text"])
         self.assertIn("아니오", modal["close"]["text"])
 
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 9, 30))
-    def test_slash_command_opens_confirmation_for_current_kst_calendar_month(self, _today):
-        command = self._register()["/월간등록"]
+    def _run_command(self, registered=frozenset()):
+        lists = Mock()
+        lists.get_registered_weeks.return_value = set(registered)
+        command = self._register(lists)["/월간등록"]
         ack, respond, client = Mock(), Mock(), Mock()
-
+        client.views_open.return_value = {"view": {"id": "V1"}}
         command(ack, respond, client, {"user_id": "U0123456789", "trigger_id": "T1"})
+        return lists, respond, client
 
-        ack.assert_called_once_with()
-        client.views_open.assert_called_once()
+    @patch("utils._today_kst", return_value=date(2026, 9, 30))
+    def test_slash_command_opens_confirmation_for_current_week_month(self, _today):
+        lists, respond, client = self._run_command()
+
         self.assertEqual(client.views_open.call_args.kwargs["trigger_id"], "T1")
-        modal = client.views_open.call_args.kwargs["view"]
+        lists.get_registered_weeks.assert_called_once_with("U0123456789", ["week1", "week2", "week3"])
+        self.assertEqual(client.views_update.call_args.kwargs["view_id"], "V1")
+        modal = client.views_update.call_args.kwargs["view"]
+        self.assertEqual(modal["callback_id"], "monthly_registration_modal")
         self.assertEqual(json.loads(modal["private_metadata"])["month"], "2026-09")
         respond.assert_not_called()
 
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 12, 1))
+    def test_month_follows_monday_of_current_week_across_month_boundary(self):
+        # 10/2(금)은 week3(9/28 월요일) → 9월, 11/1(일)은 week7(10/26 월요일) → 10월
+        for today, month in ((date(2026, 10, 2), "2026-09"), (date(2026, 11, 1), "2026-10")):
+            with self.subTest(today=today), patch("utils._today_kst", return_value=today):
+                _, _, client = self._run_command()
+                modal = client.views_update.call_args.kwargs["view"]
+                self.assertEqual(json.loads(modal["private_metadata"])["month"], month)
+
+    @patch("utils._today_kst", return_value=date(2026, 10, 6))
+    def test_fully_registered_user_sees_already_registered_modal(self, _today):
+        _, _, client = self._run_command(registered={"week4", "week5", "week6", "week7"})
+
+        modal = client.views_update.call_args.kwargs["view"]
+        self.assertNotIn("submit", modal)
+        self.assertNotIn("callback_id", modal)
+        text = modal["blocks"][0]["text"]["text"]
+        self.assertIn("*10월* 활동에 이미 등록되어 있습니다.", text)
+        self.assertIn("week4(10/5~) · week5(10/12~) · week6(10/19~) · week7(10/26~)", text)
+        self.assertIn("월요일 기준", text)
+
+    @patch("utils._today_kst", return_value=date(2026, 10, 6))
+    def test_partially_registered_user_gets_confirmation_to_fill_missing_weeks(self, _today):
+        _, _, client = self._run_command(registered={"week4", "week5"})
+
+        modal = client.views_update.call_args.kwargs["view"]
+        self.assertEqual(modal["callback_id"], "monthly_registration_modal")
+
+    @patch("utils._today_kst", return_value=date(2026, 10, 6))
+    def test_lookup_failure_shows_error_modal(self, _today):
+        lists = Mock()
+        lists.get_registered_weeks.side_effect = RuntimeError("boom")
+        command = self._register(lists)["/월간등록"]
+        client = Mock()
+        client.views_open.return_value = {"view": {"id": "V1"}}
+
+        command(Mock(), Mock(), client, {"user_id": "U0123456789", "trigger_id": "T1"})
+
+        modal = client.views_update.call_args.kwargs["view"]
+        self.assertIn("불러오지 못했습니다", modal["blocks"][0]["text"]["text"])
+
+    @patch("utils._today_kst", return_value=date(2026, 12, 1))
     def test_slash_command_rejects_month_outside_september_through_november(self, _today):
         command = self._register()["/월간등록"]
         ack, respond, client = Mock(), Mock(), Mock()
@@ -55,7 +102,7 @@ class MonthlyRegistrationTests(unittest.TestCase):
         self.assertIn("기간", respond.call_args.kwargs["text"])
 
     @patch.dict(os.environ, {"SLACK_CHANNEL_ID": "C1"})
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 10, 15))
+    @patch("utils._today_kst", return_value=date(2026, 10, 15))
     def test_yes_submission_syncs_requesting_user_for_only_that_months_weeks(self, _today):
         lists = Mock()
         existing = []
@@ -79,7 +126,7 @@ class MonthlyRegistrationTests(unittest.TestCase):
         )
 
     @patch.dict(os.environ, {"SLACK_CHANNEL_ID": "C1"})
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 10, 1))
+    @patch("utils._today_kst", return_value=date(2026, 10, 5))
     def test_stale_or_tampered_modal_cannot_register_a_different_month(self, _today):
         lists = Mock()
         submit = self._register(lists)["monthly_registration_modal"]
@@ -95,7 +142,7 @@ class MonthlyRegistrationTests(unittest.TestCase):
         lists.sync_participation.assert_not_called()
 
     @patch.dict(os.environ, {"SLACK_CHANNEL_ID": "C1"})
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 9, 20))
+    @patch("utils._today_kst", return_value=date(2026, 9, 20))
     def test_repeated_submission_is_idempotent(self, _today):
         class IdempotentListClient:
             def __init__(self):
@@ -129,7 +176,7 @@ class MonthlyRegistrationTests(unittest.TestCase):
         })
 
     @patch.dict(os.environ, {"SLACK_CHANNEL_ID": "C1"})
-    @patch("handlers.commands.get_today_kst", return_value=date(2026, 9, 20))
+    @patch("utils._today_kst", return_value=date(2026, 9, 20))
     def test_partial_failure_can_be_safely_retried_without_duplicate_rows(self, _today):
         class FlakyListClient:
             def __init__(self):

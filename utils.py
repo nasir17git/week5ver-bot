@@ -64,6 +64,15 @@ def get_week_dates(week: str) -> tuple[date, date]:
     raise ValueError(f"알 수 없는 주차입니다: {week}")
 
 
+def get_registration_month() -> str | None:
+    """현재 주차의 월요일이 속한 달(YYYY-MM)을 반환. 운영 기간 밖이면 None."""
+    week = get_current_week()
+    if not week:
+        return None
+    monday, _ = get_week_dates(week)
+    return monday.strftime("%Y-%m")
+
+
 def get_week_option_id(week: str) -> str | None:
     """주차명을 Slack List select option ID로 변환. 환경변수에서 읽음. 미설정이면 None."""
     env_key = f"SLACK_LIST_OPT_{week.upper()}"

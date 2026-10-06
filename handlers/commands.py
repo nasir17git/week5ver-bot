@@ -2,10 +2,10 @@ import json
 import os
 import threading
 
-from handlers.views import monthly_registration_modal
+from handlers.views import monthly_already_registered_modal, monthly_registration_modal, season_closed_modal
 from scheduler.jobs import post_weekly_goal_request, post_daily_update_request, send_daily_notifications
 from slack_list.client import SlackListClient
-from utils import MONTH_WEEKS, get_current_week, get_today_kst
+from utils import MONTH_WEEKS, get_current_week, get_registration_month
 
 
 _monthly_registration_lock = threading.Lock()
@@ -48,9 +48,10 @@ def register_commands(app, list_client=None):
 
     @app.command("/월간등록")
     def handle_monthly_registration(ack, respond, client, body):
-        """명령을 실행한 사용자를 현재 달의 참가자로 등록하기 전 확인 Modal을 엽니다."""
+        """명령을 실행한 사용자를 현재 주차 월요일 기준 달의 참가자로 등록하기 전 확인 Modal을 엽니다.
+        이미 그 달의 모든 주차에 참여현황이 있으면 안내 Modal만 보여줍니다."""
         ack()
-        month = get_today_kst().strftime("%Y-%m")
+        month = get_registration_month()
         if month not in MONTH_WEEKS:
             respond(response_type="ephemeral", text="현재는 월간 활동 등록 기간이 아닙니다.")
             return
@@ -59,12 +60,26 @@ def register_commands(app, list_client=None):
             "channel_id": body.get("channel_id", ""),
         })
         try:
-            client.views_open(
+            # List 조회가 trigger_id 만료(3초)보다 길 수 있어 로딩 Modal을 먼저 엽니다.
+            loading = client.views_open(
                 trigger_id=body["trigger_id"],
-                view=monthly_registration_modal(month, private_metadata=metadata),
+                view=season_closed_modal("참가 정보를 확인하고 있습니다…"),
             )
         except Exception:
             respond(response_type="ephemeral", text="등록 확인 창을 열지 못했습니다. 잠시 후 다시 시도해주세요.")
+            return
+        view_id = loading["view"]["id"]
+        try:
+            target = list_client or SlackListClient(client)
+            weeks = MONTH_WEEKS[month]
+            registered = target.get_registered_weeks(body["user_id"], weeks)
+        except Exception:
+            client.views_update(view_id=view_id, view=season_closed_modal("참가 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."))
+            return
+        if set(weeks) <= registered:
+            client.views_update(view_id=view_id, view=monthly_already_registered_modal(month))
+            return
+        client.views_update(view_id=view_id, view=monthly_registration_modal(month, private_metadata=metadata))
 
     @app.view("monthly_registration_modal")
     def handle_monthly_registration_submit(ack, view, client, body):
@@ -78,8 +93,7 @@ def register_commands(app, list_client=None):
         channel_id = metadata.get("channel_id")
 
         # 오래 열어 둔 Modal로 다른 달을 등록하지 못하게 제출 시점에도 검증합니다.
-        current_month = get_today_kst().strftime("%Y-%m")
-        if month != current_month or month not in MONTH_WEEKS:
+        if month != get_registration_month() or month not in MONTH_WEEKS:
             _notify_monthly_result(client, channel_id, user_id, "등록 기간이 지났습니다. /월간등록을 다시 실행해주세요.")
             return
 

@@ -127,6 +127,17 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(fake.updated, [])
 
     @patch.dict(os.environ, ENV, clear=True)
+    def test_registered_weeks_count_rest_and_ignore_goals_and_other_users(self):
+        fake = FakeClient([
+            item("p4", "U1", "week4", row_type="participation", status="active"),
+            item("p5", "U1", "week5", row_type="participation", status="rest"),
+            item("g6", "U1", "week6"),
+            item("p7", "U2", "week7", row_type="participation", status="active"),
+        ])
+        registered = SlackListClient(fake).get_registered_weeks("U1", ["week4", "week5", "week6", "week7"])
+        self.assertEqual(registered, {"week4", "week5"})
+
+    @patch.dict(os.environ, ENV, clear=True)
     def test_new_participation_starts_with_zero_counts(self):
         fake = FakeClient([])
         SlackListClient(fake).sync_participation("U1", "week1")
