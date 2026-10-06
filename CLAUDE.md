@@ -1,226 +1,56 @@
 # CLAUDE.md
 
-이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 가이드입니다.
+이 저장소는 Slack 기반 스터디 운영 봇 `week5ver Season 4`입니다.
 
-## 프로젝트 개요
+## 현재 운영 기준
 
-Slack 워크스페이스에서 동작하는 Python 기반 슬랙 봇입니다.
-**week5ver (26년 상반기)** 클럽 운영을 자동화하며, 강의를 꾸준히 수강하고 인증하는 습관 형성이 목적입니다.
+- 운영 기간: 2026-09-14(월) ~ 2026-11-29(일)
+- 주차: `week1` ~ `week11`, 각 주차는 월요일부터 일요일까지
+- 매주 월요일 00:10 KST에 해당 주차 목표 등록 안내 게시
+- 새 주간 안내는 채널에 고정하고 이전 주간 안내는 고정 해제
+- 사용자는 해당 주차 월~일 동안 목표를 등록하고 인증
+- 매일 00:10 KST에 인증 안내 게시, 인증 버튼은 만료하지 않음
+- 목표 등록 시 현재 주차 안의 완료 예정일을 필수로 입력
+- 매일 21:00 KST에 완료 예정일이 오늘이거나 지난 현재 주차 미완료 목표를 담당자별로 모아 DM 알림
+- 목표 데이터는 `week5ver-2026하반기` Slack List에 저장
+- 같은 List의 참여현황 행으로 월별 신청·휴식·주간 판정을 관리
+- 목표 1개 완료를 인증 1회로 집계하며 금액 정산은 운영자가 수동 처리
 
-**핵심 기능:**
-- Slack List를 저장소로 사용하여 목표 데이터 관리 (파일/DB 없음)
-- 매주 **토요일 오전 12시 10분** 채널에 메시지 게시 → 메시지 내부 버튼으로 주간 목표 등록 모달 오픈 → 최대 5개 수강 목표 등록 → 원문 댓글로 결과 전송
-- 매일 **오전 12시 10분** 채널에 메시지 게시 → 메시지 내부 버튼으로 일간 갱신 모달 오픈 → 인증자료·한줄회고 갱신 → `week5ver` 채널에 전송
-- 등록/갱신 시 Slack List 아이템 생성·업데이트
-- `/등록발송`, `/인증발송`, `/알림발송` 슬래시 명령어 및 이모지를 통한 목표 등록/갱신 가능
-- 매일 **오후 9시** 미완료 항목 담당자에게 DM 알림 발송
+상세 운영 및 기술 명세는 [Season 4 운영 문서](docs/season4-operations.md)를 참고합니다.
+공유용 안내문은 [Season 4 모집글](docs/season4-recruitment.md)을 사용합니다.
 
-**봇 이름:**
-| 봇 | 역할 |
-|---|---|
-| `week5ver-collector` | 매주 토 오전 12시 주간 목표 등록 안내 메시지 발송 |
-| `week5ver-updator` | 매일 일간 인증 안내 메시지 발송 및 결과 게시 |
-| `week5ver-notifier` | 매일 오후 9시 미완료 항목 담당자 DM 알림 발송 |
+## 주요 파일
 
-**Slack List 컬럼 구조:**
-List 이름: `week5ver-2026상반기`
-
-| 컬럼명 | 타입 | 설명 |
-|---|---|---|
-| 수강예정 강의이름 | 텍스트 | 목표 제목 |
-| 담당자 | person | 목표 소유자 (user ID) |
-| 기한 | 날짜 | 목표 완료 기한 |
-| 주차 | 선택(select) | 해당 주차 (demo, week1~week9) |
-| 인증자료 | 파일 | 완료 증빙 첨부파일 |
-| 한 줄 회고 | 텍스트 | 일간 갱신 시 입력 |
-| updated_at | 타임스탬프 | 마지막 편집 시간 |
-
-## 진행 일정 (2026 상반기)
-
-| 주차 | 목표 등록 | 강의 수강 및 인증 |
-|---|---|---|
-| demo | 3/21(토) ~ 3/22(일) | 3/23(월) ~ 3/29(일) |
-| week1 | 3/28(토) ~ 3/29(일) | 3/30(월) ~ 4/5(일) |
-| week2 | 4/4(토) ~ 4/5(일) | 4/6(월) ~ 4/12(일) |
-| week3 | 4/11(토) ~ 4/12(일) | 4/13(월) ~ 4/19(일) |
-| week4 | 4/18(토) ~ 4/19(일) | 4/20(월) ~ 4/26(일) |
-| week5 | 4/25(토) ~ 4/26(일) | 4/27(월) ~ 5/3(일) |
-| week6 | 5/2(토) ~ 5/3(일) | 5/4(월) ~ 5/10(일) |
-| week7 | 5/9(토) ~ 5/10(일) | 5/11(월) ~ 5/17(일) |
-| week8 | 5/16(토) ~ 5/17(일) | 5/18(월) ~ 5/24(일) |
-| week9 | 5/23(토) ~ 5/24(일) | 5/25(월) ~ 5/31(일) |
-
-## 기술 스택
-
-- **Python 3.x**
-- **Slack Bolt for Python** — 슬래시 명령어, 이모지 반응, Modal 처리
-- **slack-sdk** — Slack API 직접 호출 (`slackLists_items_list` 등)
-- 가상환경: `.venv`
-
-## 환경 설정
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+```text
+app.py                    Slack Bolt 앱 진입점
+utils.py                  Season 4 주차 일정과 현재 주차 계산
+setup_slack_list.py       Slack List·컬럼·주차 옵션 초기화
+handlers/                 버튼, 모달, 슬래시 명령 처리
+scheduler/                주간·일간 게시와 미완료 DM 작업
+slack_list/client.py      Slack Lists API 읽기·생성·수정
+templates/messages.py     Slack 메시지 Block Kit 템플릿
 ```
 
 ## 실행
 
 ```bash
-# 일반 실행
-python app.py
-
-# 핫리로드 (파일 변경 시 자동 재시작, 개발용)
-watchfiles "python app.py"
+source .venv/bin/activate
+python3 app.py
 ```
 
-## 환경 변수 (`.env`)
-
-| 변수명 | 설명 |
-|---|---|
-| `SLACK_BOT_TOKEN` | Bot OAuth 토큰 (`xoxb-`로 시작) |
-| `SLACK_SIGNING_SECRET` | 요청 검증용 서명 시크릿 |
-| `SLACK_APP_TOKEN` | Socket Mode 토큰 (`xapp-`로 시작) |
-| `SLACK_LIST_ID` | 목표를 저장할 Slack List ID (`F`로 시작) |
-| `SLACK_CHANNEL_ID` | `week5ver` 채널 ID |
-| `SLACK_COLLECTOR_ICON_URL` | `week5ver-collector` 봇 아이콘 URL (선택) |
-| `SLACK_UPDATOR_ICON_URL` | `week5ver-updator` 봇 아이콘 URL (선택) |
-| `SLACK_NOTIFIER_ICON_URL` | `week5ver-notifier` 봇 아이콘 URL (선택) |
-
-## 아키텍처
-
-```
-app.py                  # 앱 진입점, Bolt 앱 초기화 및 핸들러 등록
-handlers/
-  commands.py           # 슬래시 명령어 핸들러 (/등록발송, /인증발송, /알림발송)
-  actions.py            # 버튼 클릭, 이모지 반응, Modal 제출(view_submission) 핸들러
-  views.py              # Modal UI 정의 (Block Kit JSON 반환 함수)
-slack_list/
-  client.py             # Slack Lists API 래퍼 (조회·생성·수정 구현)
-templates/
-  messages.py           # 채널 전송용 봇 메시지 템플릿 (goal_registered 등)
-scheduler/              # 주간·일간 공지 및 미완료 DM 알림 스케줄러
-```
-
-### Slack Lists API (Python SDK)
-
-| SDK 메서드 | 용도 |
-|---|---|
-| `client.slackLists_items_list(list_id=...)` | 아이템 목록 조회 (페이지네이션 지원) — **구현됨** |
-| `client.slackLists_items_create(...)` | 아이템 신규 생성 — **구현됨** |
-| `client.slackLists_items_update(...)` | 아이템 수정 — **구현됨** |
-
-> `fields`/`cells`는 리스트 형태. 각 필드에 `column_id` + 타입별 키: `rich_text`, `user`, `date`, `select`, `checkbox`, `attachment` 등.
-> `todo_completed` 컬럼은 `"checkbox": true` 형식으로 업데이트. `updated_at`은 Slack 자동 관리 컬럼으로 API 쓰기 불가(`uneditable_column`).
-> Slack 파일 permalink를 Block Kit `image` 블록 `image_url`로 사용하면 워크스페이스 내에서 미리보기 정상 동작 확인됨.
-
-## 주요 흐름
-
-### 1. 주간 목표 등록 (매주 토요일 오전 12시 10분)
-`week5ver-collector` 봇이 `week5ver` 채널에 주간 목표 등록 안내 메시지 게시
-→ 사용자가 메시지 내부 버튼("주간 목표 등록") 클릭 또는 이모지 반응
-→ `views.goal_register_modal()` 표시
-　　강의명 최대 5개 + 각 수강 예정일 + 주차 선택
-→ 제출 → `actions.py`의 `goal_register_modal` view_submission 핸들러
-→ `slack_list.client.create_item()`으로 Slack List에 강의당 아이템 생성
-→ 원문 메시지 댓글로 등록 완료 내역 전송
-
-### 2. 일간 갱신 (매일 오전 12시 10분)
-`week5ver-updator` 봇이 채널에 일간 갱신 안내 메시지 게시
-→ 사용자가 메시지 내부 버튼("일간 목표 인증") 클릭 또는 이모지 반응
-→ 해당 사용자의 목표 조회 후 `views.goal_update_modal()` 표시
-　　- 수강 예정 강의 이름 (드롭다운 선택)
-　　- 인증자료 (파일 업로드)
-　　- 한줄회고 (선택)
-→ 제출 → Slack List 아이템 갱신 (한줄회고, 인증자료, todo_completed=true)
-→ 채널에 완료 메시지 전송 + 인증자료 이미지 미리보기 (permalink → image 블록)
-
-### 3. 슬래시 명령어
-
-| 명령어 | 동작 | 상태 |
-|---|---|---|
-| `/등록발송` | 주간 목표 등록 안내 메시지 즉시 발송 | 구현됨 |
-| `/인증발송` | 일간 인증 안내 메시지 즉시 발송 | 구현됨 |
-| `/알림발송` | 미완료 항목 담당자 DM 알림 즉시 발송 | 구현됨 |
-
-## 구현 현황
-
-### 완료
-- [x] Slack Bolt 앱 초기화 + APScheduler 연동 (`app.py`)
-- [x] `goal_register_modal` view_submission → `create_item` 호출 + 채널 완료 메시지
-- [x] `goal_update_modal` view_submission → `update_item` 호출 + 채널 인증 메시지
-- [x] 버튼 핸들러 — `open_goal_register_modal` / `open_goal_update_modal`
-- [x] 이모지 반응 핸들러 — `pencil2` / `white_check_mark` → ephemeral 안내
-- [x] `SlackListClient.create_item()` — column ID 환경 변수 기반 구현
-- [x] `SlackListClient.update_item()` — 한줄회고 / 인증자료 / todo_completed(checkbox) 갱신
-- [x] `scheduler/` — 주간(토 00:10 KST) / 일간(매일 00:10 KST) / 미완료 DM 알림(매일 21:00 KST) 자동 발송
-- [x] `templates/messages.py` — `goal_registered` / `goal_certified` / `weekly_goal_request` / `daily_update_request`
-- [x] `utils.py` — 주차 자동 감지 (`get_current_week`)
-- [x] 인증 완료 시 Slack List 아이템 `todo_completed` → `checkbox: true` 처리
-- [x] 인증 메시지에 인증자료 이미지 미리보기 (`files_info` permalink → image 블록)
-- [x] 매일 21:00 KST 미완료 항목 담당자 DM 알림 (`send_daily_notifications`) + `/알림발송` 수동 트리거
-
-### TODO
-- [ ] 이모지 반응 트리거 → 모달 직접 오픈 (현재: ephemeral 안내 → 슬래시 명령어 유도)
-
-### column ID 환경 변수 (`.env` 설정)
-
-Slack List column ID는 `python debug_columns.py`로 확인.
-
-| 환경 변수 | 대응 컬럼 |
-|---|---|
-| `SLACK_LIST_COL_TITLE` | 수강예정 강의이름 |
-| `SLACK_LIST_COL_ASSIGNEE` | 담당자 |
-| `SLACK_LIST_COL_DEADLINE` | 기한 |
-| `SLACK_LIST_COL_WEEK` | 주차 |
-| `SLACK_LIST_COL_RETRO` | 한 줄 회고 |
-| `SLACK_LIST_COL_PROOF` | 인증자료 |
-| `SLACK_LIST_COL_TODO_COMPLETED` | todo_completed 불리언 컬럼 (todo_mode 활성화 후 생성) |
-
-## 배포 (Docker)
-
-```
-Dockerfile              # python:3.12-slim, 비루트 유저(appuser) 실행
-docker-compose.yml      # env_file: .env, restart: unless-stopped
-.env                    # Git 제외 (.gitignore)
-.env.example            # 변수 템플릿 (Git 포함)
-```
+Docker 배포:
 
 ```bash
-docker compose up --build -d   # 빌드 및 백그라운드 실행
-docker compose logs -f          # 로그 확인
-docker compose down             # 중지
+docker build -t week5ver-bot:local .
+docker run --rm --env-file .env week5ver-bot:local
 ```
 
-> Socket Mode 사용으로 인바운드 포트 노출 불필요. `.env`는 이미지에 포함하지 않음 (`.dockerignore` 필수).
+토큰과 시크릿은 `.env`에만 저장하며 저장소에 커밋하지 않습니다.
 
-## Slack 앱 설정 (api.slack.com)
+`docker-compose.yml`도 로컬 소스를 빌드합니다. Compose로 실행할 때는 다음 명령을
+사용하며, 실행 중인 기존 봇과 중복 기동하지 않습니다.
 
-- **Socket Mode** 활성화
-- **Bot Token Scopes**:
-
-  | Scope | 용도 |
-  |---|---|
-  | `chat:write` | 채널 메시지 전송·수정 |
-  | `chat:write.public` | 봇 미참여 채널 메시지 전송 |
-  | `commands` | 슬래시 명령어 |
-  | `channels:history` | 채널 메시지 조회 |
-  | `reactions:read` | 이모지 반응 이벤트 수신 |
-  | `lists:read` | Slack List 아이템 조회 |
-  | `lists:write` | Slack List 아이템 생성·수정·삭제 |
-
-- **Event Subscriptions**: `reaction_added`
-- **App-Level Token Scopes**: `connections:write` (Socket Mode)
-- **슬래시 명령어 등록**: `/등록발송`, `/인증발송`, `/알림발송`
-
----
-
-## 새로운 학기 시작시 셋팅할것
-- 새로운 list 생성
-- 필요한 컬럼들 생성 및 더미데이터 한줄 입력
-  - 주차에 demo및 모든 week* 등록 필요
-- `python debug_columns.py` 로 column_id 확인 후 .env 업데이트 
-- 앱에 편집가능하게 리스트 공유
-  -  리스트 우측 상단 "공유" (Share) 버튼 클릭
-  -  봇 앱(week5ver-bot 또는 앱 이름) 검색 후 편집 가능 권한으로 추가
+```bash
+docker compose up --build -d
+docker compose logs -f
+```

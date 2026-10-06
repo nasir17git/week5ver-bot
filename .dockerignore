@@ -1,4 +1,6 @@
 .env
+.env.*
+participants.csv
 .venv
 __pycache__
 *.pyc

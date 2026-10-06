@@ -19,7 +19,7 @@ from handlers.actions import register_actions
 from scheduler import create_scheduler
 
 list_client = SlackListClient(app.client)
-register_commands(app)
+register_commands(app, list_client)
 register_actions(app, list_client)
 
 if __name__ == "__main__":

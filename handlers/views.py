@@ -1,16 +1,45 @@
 """Modal(팝업) UI 정의 — Block Kit JSON 반환 함수 모음."""
 
+import json
+
 from slack_list.client import extract_title
-from utils import WEEK_NAMES, get_current_week
+from utils import get_current_week
+
+
+def monthly_registration_modal(month: str, private_metadata: str | None = None) -> dict:
+    """해당 월의 참가 신청 여부를 확인하는 Modal."""
+    if private_metadata is None:
+        private_metadata = json.dumps({"month": month})
+    year, month_number = month.split("-", 1)
+    month_label = f"{year}년 {int(month_number)}월"
+    return {
+        "type": "modal",
+        "callback_id": "monthly_registration_modal",
+        "private_metadata": private_metadata,
+        "title": {"type": "plain_text", "text": "월간 활동 등록"},
+        "submit": {"type": "plain_text", "text": "예"},
+        "close": {"type": "plain_text", "text": "아니오"},
+        "blocks": [{
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{month_label}* 활동을 등록하시겠습니까?\n등록하면 이 달에 배정된 모든 주차에 참가자로 추가됩니다.",
+            },
+        }],
+    }
 
 
 def goal_register_modal(private_metadata: str = "") -> dict:
-    """주간 목표 등록 Modal (강의 최대 5개 + 수강 예정일)."""
+    """주간 목표 등록 Modal (목표 최대 5개 + 목표일)."""
     current_week = get_current_week()
 
+    if not current_week:
+        return season_closed_modal()
+
+    available_weeks = [current_week]
     week_options = [
         {"text": {"type": "plain_text", "text": w}, "value": w}
-        for w in WEEK_NAMES
+        for w in available_weeks
     ]
 
     blocks = [
@@ -22,12 +51,12 @@ def goal_register_modal(private_metadata: str = "") -> dict:
                 "type": "static_select",
                 "action_id": "week_input",
                 "options": week_options,
-                **({"initial_option": {"text": {"type": "plain_text", "text": current_week}, "value": current_week}} if current_week else {}),
+                "initial_option": {"text": {"type": "plain_text", "text": current_week}, "value": current_week},
             },
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": "수강 예정 강의를 최대 5개까지 입력하세요."},
+            "text": {"type": "mrkdwn", "text": "공부·독서·코딩 등 이번 주 목표를 한 번에 최대 5개까지 입력하세요. 목표 하나를 한 번 인증하면 완료됩니다."},
         },
     ]
 
@@ -37,12 +66,12 @@ def goal_register_modal(private_metadata: str = "") -> dict:
             {
                 "type": "input",
                 "block_id": f"lecture_{i}_block",
-                "label": {"type": "plain_text", "text": f"강의 {i}"},
+                "label": {"type": "plain_text", "text": f"목표 {i}"},
                 "optional": not required,
                 "element": {
                     "type": "plain_text_input",
                     "action_id": f"lecture_{i}_input",
-                    "placeholder": {"type": "plain_text", "text": "수강 예정 강의명"},
+                    "placeholder": {"type": "plain_text", "text": "공부할 내용 또는 완료할 목표"},
                     "max_length": 200,
                 },
             }
@@ -51,8 +80,8 @@ def goal_register_modal(private_metadata: str = "") -> dict:
             {
                 "type": "input",
                 "block_id": f"deadline_{i}_block",
-                "label": {"type": "plain_text", "text": f"강의 {i} 수강 예정일"},
-                "optional": True,
+                "label": {"type": "plain_text", "text": f"목표 {i} 완료 예정일"},
+                "optional": not required,
                 "element": {
                     "type": "datepicker",
                     "action_id": f"deadline_{i}_input",
@@ -72,8 +101,20 @@ def goal_register_modal(private_metadata: str = "") -> dict:
     }
 
 
+def season_closed_modal(message: str = "현재는 Season 4 등록·인증 기간이 아닙니다.") -> dict:
+    return {
+        "type": "modal",
+        "title": {"type": "plain_text", "text": "week5ver"},
+        "close": {"type": "plain_text", "text": "닫기"},
+        "blocks": [{
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": message},
+        }],
+    }
+
+
 def goal_update_modal(items: list, private_metadata: str = "") -> dict:
-    """일간 인증 Modal (강의 선택 + 강의명 변경 + 인증자료 + 한줄회고)."""
+    """목표 인증 Modal (목표 선택 + 제목 변경 + 인증자료 + 한 줄 회고)."""
     if not items:
         return {
             "type": "modal",
@@ -84,7 +125,7 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "등록된 목표가 없습니다.\n먼저 `/목표등록`으로 이번 주 목표를 등록해주세요.",
+                        "text": "이번 주 인증할 미완료 목표가 없습니다.\n모두 완료했거나 아직 등록하지 않은 상태입니다.",
                     },
                 }
             ],
@@ -92,10 +133,10 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
 
     options = [
         {
-            "text": {"type": "plain_text", "text": extract_title(item)[:75]},
+            "text": {"type": "plain_text", "text": (extract_title(item).strip() or "제목 없는 목표")[:75]},
             "value": item["id"],
         }
-        for item in items
+        for item in items[:100]
     ]
 
     return {
@@ -109,11 +150,12 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
             {
                 "type": "input",
                 "block_id": "goal_select_block",
-                "label": {"type": "plain_text", "text": "인증할 강의 선택"},
+                "label": {"type": "plain_text", "text": "인증할 목표 선택"},
+                "hint": {"type": "plain_text", "text": "미완료 목표를 최대 100개 표시합니다. 완료 후 다시 열면 다음 목표가 표시됩니다."},
                 "element": {
                     "type": "static_select",
                     "action_id": "goal_select_input",
-                    "placeholder": {"type": "plain_text", "text": "강의를 선택하세요"},
+                    "placeholder": {"type": "plain_text", "text": "목표를 선택하세요"},
                     "options": options,
                     "initial_option": options[0],
                 },
@@ -122,12 +164,12 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                 "type": "input",
                 "block_id": "title_edit_block",
                 "optional": True,
-                "label": {"type": "plain_text", "text": "강의명 변경"},
-                "hint": {"type": "plain_text", "text": "미입력시 선택한 강의명 그대로 유지, 입력 시 선택한 항목의 강의명을 변경하여 업데이트"},
+                "label": {"type": "plain_text", "text": "목표 제목 변경"},
+                "hint": {"type": "plain_text", "text": "비워두면 기존 제목을 유지합니다."},
                 "element": {
                     "type": "plain_text_input",
                     "action_id": "title_edit_input",
-                    "placeholder": {"type": "plain_text", "text": "변경할 강의명 입력"},
+                    "placeholder": {"type": "plain_text", "text": "변경할 목표 제목 입력"},
                     "max_length": 200,
                 },
             },
@@ -154,26 +196,4 @@ def goal_update_modal(items: list, private_metadata: str = "") -> dict:
                 },
             },
         ],
-    }
-
-
-def goal_view_modal(items: list) -> dict:
-    """목표 조회 Modal (읽기 전용)."""
-    if not items:
-        blocks = [
-            {"type": "section", "text": {"type": "mrkdwn", "text": "등록된 목표가 없습니다."}}
-        ]
-    else:
-        blocks = []
-        for i, item in enumerate(items, start=1):
-            blocks.append(
-                {"type": "section", "text": {"type": "mrkdwn", "text": f"*{i}.* {extract_title(item)}"}}
-            )
-            blocks.append({"type": "divider"})
-
-    return {
-        "type": "modal",
-        "title": {"type": "plain_text", "text": "내 목표 목록"},
-        "close": {"type": "plain_text", "text": "닫기"},
-        "blocks": blocks,
     }

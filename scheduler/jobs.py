@@ -15,6 +15,9 @@ _UPDATOR_ICON_URL   = os.environ.get("SLACK_UPDATOR_ICON_URL", "")
 _NOTIFIER_NAME      = "week5ver-notifier"
 _NOTIFIER_ICON_URL  = os.environ.get("SLACK_NOTIFIER_ICON_URL", "")
 
+_WEEKLY_MESSAGE_TEXT = "이번 주 공부 목표를 등록해주세요!"
+_WEEKLY_EVENT_TYPE = "week5ver_weekly_goal_request"
+
 
 def _bot_kwargs(username: str, icon_url: str) -> dict:
     kwargs = {"username": username}
@@ -24,21 +27,68 @@ def _bot_kwargs(username: str, icon_url: str) -> dict:
 
 
 def post_weekly_goal_request(client) -> None:
-    """주간 목표 등록 안내 메시지 발송."""
+    """주간 목표 등록 안내 메시지를 발송하고 채널에 고정."""
     channel_id = os.environ["SLACK_CHANNEL_ID"]
     week = get_current_week()
+    if not week:
+        logger.info("[Scheduler] 운영 기간 밖 — 주간 등록 안내 생략")
+        return
     msg = messages.weekly_goal_request(week=week)
     result = client.chat_postMessage(
         channel=channel_id,
+        metadata={
+            "event_type": _WEEKLY_EVENT_TYPE,
+            "event_payload": {"week": week or ""},
+        },
         **collector_kwargs(),
         **msg,
     )
     logger.info(f"[Scheduler] 주간 목표 등록 안내 발송 ok={result['ok']} week={week}")
+    if result["ok"]:
+        try:
+            client.pins_add(channel=channel_id, timestamp=result["ts"])
+            logger.info(f"[Scheduler] 주간 목표 등록 안내 고정 완료 ts={result['ts']}")
+            _unpin_previous_weekly_goal_requests(
+                client,
+                channel_id=channel_id,
+                current_ts=result["ts"],
+                bot_id=result.get("message", {}).get("bot_id"),
+            )
+        except Exception as e:
+            # pins:read/pins:write가 없더라도 안내 메시지 발송 자체는 유지합니다.
+            logger.warning(f"[Scheduler] 주간 목표 등록 안내 고정 처리 실패: {e}")
+
+
+def _unpin_previous_weekly_goal_requests(
+    client,
+    channel_id: str,
+    current_ts: str,
+    bot_id: str | None = None,
+) -> None:
+    """현재 글을 제외한 이 봇의 이전 주간 등록 안내 고정을 해제."""
+    response = client.pins_list(channel=channel_id)
+    for item in response.get("items", []):
+        message = item.get("message", {})
+        ts = message.get("ts")
+        if not ts or ts == current_ts:
+            continue
+
+        is_weekly = (
+            message.get("metadata", {}).get("event_type") == _WEEKLY_EVENT_TYPE
+            or message.get("text") in {_WEEKLY_MESSAGE_TEXT, "이번 주 수강 목표를 등록해주세요!"}
+        )
+        is_same_bot = bool(bot_id) and message.get("bot_id") == bot_id
+        if is_weekly and is_same_bot:
+            client.pins_remove(channel=channel_id, timestamp=ts)
+            logger.info(f"[Scheduler] 이전 주간 등록 안내 고정 해제 ts={ts}")
 
 
 def post_daily_update_request(client) -> tuple[str, str] | tuple[None, None]:
     """일간 인증 안내 메시지 발송. 성공 시 (ts, channel_id) 반환."""
     channel_id = os.environ["SLACK_CHANNEL_ID"]
+    if not get_current_week():
+        logger.info("[Scheduler] 운영 기간 밖 — 일간 인증 안내 생략")
+        return None, None
     msg = messages.daily_update_request()
     result = client.chat_postMessage(
         channel=channel_id,
@@ -51,22 +101,16 @@ def post_daily_update_request(client) -> tuple[str, str] | tuple[None, None]:
     return None, None
 
 
-def expire_daily_update_message(client, channel_id: str, ts: str) -> None:
-    """일간 인증 안내 메시지를 만료 상태로 업데이트 (버튼 제거)."""
-    msg = messages.daily_update_expired()
-    try:
-        client.chat_update(channel=channel_id, ts=ts, **msg)
-        logger.info(f"[Scheduler] 일간 인증 안내 만료 처리 ts={ts}")
-    except Exception as e:
-        logger.warning(f"[Scheduler] 일간 인증 안내 만료 처리 실패: {e}")
-
-
 def send_daily_notifications(client) -> None:
     """미완료 항목 담당자에게 DM 발송 (매일 오후 9시 KST)."""
     from slack_list.client import SlackListClient, extract_title, extract_assignees
 
     list_client = SlackListClient(client)
-    incomplete_items = list_client.get_all_incomplete_items()
+    week = get_current_week()
+    if not week:
+        logger.info("[Notifier] 운영 기간 밖 — DM 생략")
+        return
+    incomplete_items = list_client.get_all_incomplete_items(week)
 
     if not incomplete_items:
         logger.info("[Notifier] 미완료 항목 없음 — DM 발송 생략")
@@ -89,7 +133,7 @@ def send_daily_notifications(client) -> None:
             bullet_list = "\n".join(f"• {t}" for t in titles)
             text = (
                 f"안녕하세요 <@{user_id}>! :wave:\n"
-                f"오늘 아직 인증하지 않은 강의가 {len(titles)}개 있어요:\n"
+                f"이번 주 아직 인증하지 않은 목표가 {len(titles)}개 있어요:\n"
                 f"{bullet_list}"
             )
             client.chat_postMessage(channel=dm_channel, text=text, **bot_kwargs)

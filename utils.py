@@ -1,7 +1,7 @@
 """공통 유틸리티."""
 
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 
@@ -10,6 +10,11 @@ _KST = ZoneInfo("Asia/Seoul")
 
 def _today_kst() -> date:
     return datetime.now(_KST).date()
+
+
+def get_today_kst() -> date:
+    """현재 한국 날짜를 반환합니다."""
+    return _today_kst()
 
 
 def collector_kwargs() -> dict:
@@ -29,21 +34,34 @@ def updater_kwargs() -> dict:
         kwargs["icon_url"] = icon_url
     return kwargs
 
-# 진행 일정: (주차명, 시작일, 종료일)
+# 진행 일정: (주차명, 월요일, 일요일)
 WEEK_SCHEDULE = [
-    ("demo",  date(2026, 3, 21),  date(2026, 3, 29)),
-    ("week1", date(2026, 3, 28),  date(2026, 4,  5)),
-    ("week2", date(2026, 4,  4),  date(2026, 4, 12)),
-    ("week3", date(2026, 4, 11),  date(2026, 4, 19)),
-    ("week4", date(2026, 4, 18),  date(2026, 4, 26)),
-    ("week5", date(2026, 4, 25),  date(2026, 5,  3)),
-    ("week6", date(2026, 5,  2),  date(2026, 5, 10)),
-    ("week7", date(2026, 5,  9),  date(2026, 5, 17)),
-    ("week8", date(2026, 5, 16),  date(2026, 5, 24)),
-    ("week9", date(2026, 5, 23),  date(2026, 5, 31)),
+    ("week1",  date(2026, 9, 14), date(2026, 9, 20)),
+    ("week2",  date(2026, 9, 21), date(2026, 9, 27)),
+    ("week3",  date(2026, 9, 28), date(2026, 10, 4)),
+    ("week4",  date(2026, 10, 5), date(2026, 10, 11)),
+    ("week5",  date(2026, 10, 12), date(2026, 10, 18)),
+    ("week6",  date(2026, 10, 19), date(2026, 10, 25)),
+    ("week7",  date(2026, 10, 26), date(2026, 11, 1)),
+    ("week8",  date(2026, 11, 2), date(2026, 11, 8)),
+    ("week9",  date(2026, 11, 9), date(2026, 11, 15)),
+    ("week10", date(2026, 11, 16), date(2026, 11, 22)),
+    ("week11", date(2026, 11, 23), date(2026, 11, 29)),
 ]
 
 WEEK_NAMES = [name for name, _, _ in WEEK_SCHEDULE]
+
+MONTH_WEEKS: dict[str, list[str]] = {}
+for week, monday, _ in WEEK_SCHEDULE:
+    MONTH_WEEKS.setdefault(monday.strftime("%Y-%m"), []).append(week)
+
+
+def get_week_dates(week: str) -> tuple[date, date]:
+    """주차의 월요일과 일요일을 반환합니다."""
+    for name, start, end in WEEK_SCHEDULE:
+        if name == week:
+            return start, end
+    raise ValueError(f"알 수 없는 주차입니다: {week}")
 
 
 def get_week_option_id(week: str) -> str | None:
@@ -54,12 +72,10 @@ def get_week_option_id(week: str) -> str | None:
 
 
 def get_certification_week() -> str | None:
-    """오늘 날짜 기준으로 인증 기간(월~일)에 해당하는 주차명 반환.
-    인증 기간 = 등록 주말 다음 월요일(start+2일) ~ end."""
+    """오늘 날짜 기준으로 등록·인증 기간(월~일)에 해당하는 주차명 반환."""
     today = _today_kst()
     for name, start, end in WEEK_SCHEDULE:
-        cert_start = start + timedelta(days=2)
-        if cert_start <= today <= end:
+        if start <= today <= end:
             return name
     return None
 
@@ -72,3 +88,19 @@ def get_current_week() -> str | None:
         if start <= today <= end:
             result = name
     return result
+
+
+def classify_week(week: str, status: str, registered: int, completed: int) -> str:
+    """현재 List 상태와 날짜를 기준으로 참여현황 판정을 반환."""
+    if status == "rest":
+        return "판정 제외"
+    schedule = next((row for row in WEEK_SCHEDULE if row[0] == week), None)
+    if not schedule:
+        raise ValueError(f"알 수 없는 주차입니다: {week}")
+    _, _, sunday = schedule
+    ended = _today_kst() > sunday
+    if registered == 0:
+        return "미등록" if ended else "등록 대기"
+    if completed == registered:
+        return "달성"
+    return "미달성" if ended else "진행 중"

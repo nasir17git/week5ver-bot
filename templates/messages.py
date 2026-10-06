@@ -7,7 +7,6 @@ from utils import WEEK_SCHEDULE
 _KST = pytz.timezone("Asia/Seoul")
 
 _WEEK_EMOJIS = {
-    "demo":  ":hammer:",
     "week1": ":seedling:",
     "week2": ":herb:",
     "week3": ":ear_of_rice:",
@@ -17,6 +16,8 @@ _WEEK_EMOJIS = {
     "week7": ":cherry_blossom:",
     "week8": ":fire:",
     "week9": ":sports_medal:",
+    "week10": ":trophy:",
+    "week11": ":rocket:",
 }
 
 _NUMBER_EMOJIS = [":one:", ":two:", ":three:", ":four:", ":five:"]
@@ -39,24 +40,25 @@ def weekly_goal_request(week: str | None = None) -> dict:
             break
 
     header_date = reg_start.strftime("%Y-%m-%d") if reg_start else ""
-    prog_start  = _fmt_day(date(2026, 3, 23))
-    prog_end    = _fmt_day(date(2026, 5, 31))
+    prog_start = _fmt_day(WEEK_SCHEDULE[0][1])
+    prog_end = _fmt_day(WEEK_SCHEDULE[-1][2])
 
     header = (
         f":calendar:  {header_date}  에 시작되는 주간 목표 등록\n"
-        f"{prog_start}~{prog_end} 간 수강할 목표를 등록해주세요!\n"
+        f"이번 주 월요일~일요일에 등록하고 인증할 공부 목표를 입력해주세요!\n"
+        f"시즌 기간: {prog_start}~{prog_end}\n"
         f"---\n:pushpin: 타임라인\n"
     )
 
     timeline_lines = []
     for name, start, _ in WEEK_SCHEDULE:
         emoji   = _WEEK_EMOJIS.get(name, ":calendar:")
-        sat     = start.strftime("%y%m%d")
-        sun     = (start + timedelta(days=1)).strftime("%d")
-        timeline_lines.append(f"{emoji} {sat}~{sun} - {name} 주간 목표 등록")
+        monday = start.strftime("%y%m%d")
+        sunday = (start + timedelta(days=6)).strftime("%d")
+        timeline_lines.append(f"{emoji} {monday}~{sunday} - {name} 등록 및 수행")
 
     return {
-        "text": "이번 주 수강 목표를 등록해주세요!",
+        "text": "이번 주 공부 목표를 등록해주세요!",
         "blocks": [
             {
                 "type": "section",
@@ -87,12 +89,12 @@ def goal_registered(user_id: str, goals: list[dict]) -> dict:
 
     goals: [{"title": str, "deadline": str | None}, ...]
     """
-    lines = [f":rocket: <@{user_id}> 님이 다음의 주간 목표를 입력했습니다\n---\n:dart: 주간 수강 목표\n"]
+    lines = [f":rocket: <@{user_id}> 님이 다음의 주간 목표를 입력했습니다\n---\n:dart: 주간 공부 목표\n"]
     for i, goal in enumerate(goals):
         num   = _NUMBER_EMOJIS[i] if i < len(_NUMBER_EMOJIS) else f"{i+1}."
         label = _NUMBER_LABELS[i] if i < len(_NUMBER_LABELS) else f"{i+1}번째"
         date_str = f" / {goal['deadline']}" if goal.get("deadline") else ""
-        lines.append(f"{num}{label} 수강 목표\n{goal['title']}{date_str}\n")
+        lines.append(f"{num}{label} 목표\n{goal['title']}{date_str}\n")
 
     return {
         "text": f"<@{user_id}> 님이 주간 목표를 등록했습니다.",
@@ -112,7 +114,7 @@ def goal_certified(
     file_permalinks: list[str] | None = None,
 ) -> dict:
     """일간 인증 완료 메시지."""
-    header = f":tada: <@{user_id}> 님이 \n*{title}*\n 강의 인증을 완료했습니다! :mortar_board::sparkles:"
+    header = f":tada: <@{user_id}> 님이 \n*{title}*\n 목표 인증을 완료했습니다! :mortar_board::sparkles:"
     if retro and isinstance(retro, str):
         header += f"\n\n:memo: 한 줄 회고\n{retro}"
 
@@ -128,13 +130,12 @@ def goal_certified(
 
     for permalink in (file_permalinks or []):
         blocks.append({
-            "type": "image",
-            "image_url": permalink,
-            "alt_text": "인증자료",
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"<{permalink}|인증자료 보기>"},
         })
 
     return {
-        "text": f"<@{user_id}> 님이 강의 인증을 완료했습니다.",
+        "text": f"<@{user_id}> 님이 목표 인증을 완료했습니다.",
         "blocks": blocks,
     }
 
@@ -143,13 +144,13 @@ def daily_update_request() -> dict:
     """일간 인증 안내 메시지 (버튼 포함)."""
     today = datetime.now(_KST).date().strftime("%Y-%m-%d")
     return {
-        "text": "오늘의 강의 인증을 해주세요!",
+        "text": "오늘의 공부를 인증해주세요!",
         "blocks": [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":calendar: *{today}*\n:white_check_mark: *오늘의 강의 인증을 해주세요!*\n수강 완료한 강의의 인증자료와 한 줄 회고를 남겨주세요.",
+                    "text": f":calendar: *{today}*\n:white_check_mark: *오늘의 공부를 인증해주세요!*\n이번 주 완료한 목표의 이미지·PDF를 첨부해주세요. 한 줄 회고는 선택입니다.",
                 },
             },
             {
@@ -162,23 +163,6 @@ def daily_update_request() -> dict:
                         "style": "primary",
                     }
                 ],
-            },
-        ],
-    }
-
-
-def daily_update_expired() -> dict:
-    """일간 인증 안내 메시지 만료 버전 (버튼 없음)."""
-    today = datetime.now(_KST).date().strftime("%Y-%m-%d")
-    return {
-        "text": "인증 시간이 마감되었습니다.",
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f":calendar: *{today}*\n:lock: *인증 시간이 마감되었습니다.*",
-                },
             },
         ],
     }
